@@ -49,6 +49,7 @@ mkHFile rp inPackage cabs cf = unlines
   "#include <string>",
   "#include <vector>",
   "#include <algorithm>",
+  "#include <memory>",
   "",
   "//C++ Abstract Syntax Interface.",
   nsStart inPackage,
@@ -128,20 +129,20 @@ prCon (c,(f,cs)) = unlines [
   "{",
   "public:",
   unlines
-    ["  "++ typ +++ pointerIf st var ++ ";" | (typ,st,var) <- cs],
-  "  " ++ f ++ "(const " ++ f ++ " &);",
-  "  " ++ f ++ " &operator=(const " ++f++ " &);",
-  "  " ++ f ++ "(" ++ conargs ++ ");",
+    ["  std::unique_ptr<" ++ typ ++ "> " ++ var ++ ";" | (typ,_,var) <- cs],
+    "  " ++ f ++ "(const " ++ f ++ " &);",
+    "  " ++ f ++ " &operator=(const " ++f++ " &);",
+    "  " ++ f ++ "(" ++ conargs ++ ");",
     -- Typ *p1, PIdent *p2, ListStm *p3);
-  "  ~" ++f ++ "();",
-  "  virtual void accept(Visitor *v);",
-  "  virtual " ++f++ " *clone() const;",
-  "  void swap(" ++f++ " &);",
-  "};"
+    "  ~" ++f ++ "();",
+    "  virtual void accept(Visitor *v);",
+    "  virtual " ++f++ " *clone() const;",
+    "  void swap(" ++f++ " &);",
+    "};"
   ]
  where
    conargs = concat $ intersperse ", "
-     [x +++ pointerIf st ("p" ++ show i) | ((x,st,_),i) <- zip cs [1..]]
+     ["std::unique_ptr<" ++ x ++ "> p" ++ show i | ((x,_,_),i) <- zip cs [1..]]
 
 prList :: (String, Bool) -> String
 prList (c, b) = unlines
@@ -235,14 +236,14 @@ prConstructorC :: CAbsRule -> String
 prConstructorC (f,cs) = unlines [
   f ++ "::" ++ f ++ "(" ++ conargs ++ ")",
   "{",
-  unlines ["  " ++ c ++ " = " ++ p ++ ";" | (c,p) <- zip cvs pvs],
+    unlines ["  " ++ c ++ " = std::move(" ++ p ++ ");" | (c,p) <- zip cvs pvs],
   "}"
   ]
  where
    cvs = [c | (_,_,c) <- cs]
    pvs = ['p' : show i | ((_,_,_),i) <- zip cs [1..]]
    conargs = intercalate ", "
-     [x +++ pointerIf st v | ((x,st,_),v) <- zip cs pvs]
+     ["std::unique_ptr<" ++ x ++ ">" +++ v | ((x,_,_),v) <- zip cs pvs]
 
 
 --Copy constructor and copy assignment
@@ -250,7 +251,7 @@ prCopyC :: CAbsRule -> String
 prCopyC (c,cs) = unlines [
   c ++ "::" ++ c ++ "(const" +++ c +++ "& other)",
   "{",
-  unlines ["  " ++ cv ++ " = other." ++ cloneIf st cv ++ ";" | (_,st,cv) <- cs],
+    unlines ["  " ++ cv ++ " = std::move(other." ++ cloneIf st cv ++ ");" | (_,st,cv) <- cs],
   "}",
   "",
   c +++ "&" ++ c ++ "::" ++ "operator=(const" +++ c +++ "& other)",
