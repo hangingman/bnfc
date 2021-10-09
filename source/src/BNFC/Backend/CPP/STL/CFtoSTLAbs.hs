@@ -68,6 +68,8 @@ mkHFile rp inPackage cabs cf = unlines
   "",
   prVisitable,
   "",
+  "/********************   Smart-pointer utility Interface    ********************/",
+  prCloneable,
   "/********************   Abstract Syntax Classes    ********************/",
   "",
   unlines [prAbs rp c | c <- absclasses cabs],
@@ -98,6 +100,40 @@ prVisitable = unlines [
   "};"
   ]
 
+prCloneable :: String
+prCloneable = unlines [
+  "namespace object",
+  "{",
+  "    template<typename T>",
+  "    std::unique_ptr<T> clone(const T& object)",
+  "    {",
+  "        using base_type = typename T::base_type;",
+  "        static_assert(std::is_base_of<base_type, T>::value, \"T object has to derived from T::base_type\");",
+  "        auto ptr = static_cast<const base_type&>(object).clone();",
+  "        return std::unique_ptr<T>(static_cast<T*>(ptr));",
+  "    }",
+  " ",
+  "    template<typename T>",
+  "    auto clone(T* object) -> decltype(clone(*object))",
+  "    {",
+  "        return clone(*object);",
+  "    }",
+  "}",
+  "",
+  "template<typename T>",
+  "class Cloneable",
+  "{",
+  "    using base_type = T;",
+  "",
+  "protected:",
+  "    virtual ~Cloneable() = default;",
+  "    virtual T* clone() const = 0;",
+  "",
+  "    template <typename X>",
+  "    friend std::unique_ptr<X> object::clone(const X&);",
+  "};"
+  ]
+
 prVisitor :: CAbs -> String
 prVisitor cf = unlines [
   "class Visitor",
@@ -115,8 +151,10 @@ prVisitor cf = unlines [
 
 prAbs :: RecordPositions -> String -> String
 prAbs rp c = unlines [
-  "class " ++ c ++ " : public Visitable",
+  "class " ++ c ++ " : public Visitable, public Cloneable<" ++ c ++">",
   "{",
+  "//private:",
+  "//  ~" ++ c ++ "() {}",
   "public:",
   "  virtual " ++ c ++ " *clone() const = 0;",
   if rp == RecordPositions then "  int line_number, char_number;" else "",
@@ -136,11 +174,12 @@ prCon (c,(f,cs)) = unlines [
     -- Typ *p1, PIdent *p2, ListStm *p3);
     "  ~" ++f ++ "();",
     "  virtual void accept(Visitor *v);",
-    "  virtual " ++f++ " *clone() const;",
     "  void swap(" ++f++ " &);",
+    "protected:",
+    "  " ++f++ " *clone() const override;",
     "};"
   ]
- where
+  where
    conargs = concat $ intersperse ", "
      ["std::unique_ptr<" ++ x ++ "> p" ++ show i | ((x,_,_),i) <- zip cs [1..]]
 
@@ -150,7 +189,8 @@ prList (c, b) = unlines
   , "{"
   , "public:"
   , "  virtual void accept(Visitor *v);"
-  , "  virtual " ++ c ++ " *clone() const;"
+  , "protected:"
+  , "  " ++ c ++ " *clone() const override;"
   , "};"
   , ""
     -- cons for this list type
@@ -212,11 +252,13 @@ prAcceptC ty = unlines [
   ]
 
 --The cloner makes a new deep copy of the object
+--To avoid "invalid covariant return type" error, class has cloneInner()
 prCloneC :: String -> String
 prCloneC c = unlines [
-  c +++ "*" ++ c ++ "::clone() const",
+  c ++ "*" +++ c ++ "::clone() const",
   "{",
-  "  return new" +++ c ++ "(*this);",
+  "  return new " ++ c ++ "(*this);",
+  -- return new Square(*this);
   "}"
   ]
 
@@ -251,7 +293,7 @@ prCopyC :: CAbsRule -> String
 prCopyC (c,cs) = unlines [
   c ++ "::" ++ c ++ "(const" +++ c +++ "& other)",
   "{",
-    unlines ["  " ++ cv ++ " = std::move(other." ++ cloneIf st cv ++ ");" | (_,st,cv) <- cs],
+    unlines ["  " ++ cv ++ " = std::move(std::make_unique<" ++ x ++ ">(other." ++ cv ++ "));" | (x,_,cv) <- cs],
   "}",
   "",
   c +++ "&" ++ c ++ "::" ++ "operator=(const" +++ c +++ "& other)",
@@ -266,14 +308,14 @@ prCopyC (c,cs) = unlines [
   unlines ["  std::swap(" ++ cv ++ ", other." ++ cv ++ ");" | (_,_,cv) <- cs],
   "}"
   ]
- where
-   cloneIf st cv = if st then (cv ++ "->clone()") else cv
+ -- where
+ --   cloneIf st cv = if st then (cv ++ "->clone()") else cv
 
 --The destructor deletes all a class's members.
 prDestructorC :: CAbsRule -> String
 prDestructorC (c,cs) = unlines [
   c ++ "::~" ++ c ++"()",
   "{",
-  unlines ["  delete(" ++ cv ++ ");" | (_,isPointer,cv) <- cs, isPointer],
+  unlines ["  //delete(" ++ cv ++ ");" | (_,isPointer,cv) <- cs, isPointer],
   "}"
   ]
