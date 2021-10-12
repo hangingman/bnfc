@@ -68,8 +68,8 @@ mkHFile rp inPackage cabs cf = unlines
   "",
   prVisitable,
   "",
-  "/********************   Smart-pointer utility Interface    ********************/",
-  prCloneable,
+  -- "/********************   Smart-pointer utility Interface    ********************/",
+  -- prCloneable,
   "/********************   Abstract Syntax Classes    ********************/",
   "",
   unlines [prAbs rp c | c <- absclasses cabs],
@@ -151,12 +151,12 @@ prVisitor cf = unlines [
 
 prAbs :: RecordPositions -> String -> String
 prAbs rp c = unlines [
-  "class " ++ c ++ " : public Visitable, public Cloneable<" ++ c ++">",
+  "class " ++ c ++ " : public Visitable",
   "{",
   "//private:",
   "//  ~" ++ c ++ "() {}",
-  "public:",
-  "  virtual " ++ c ++ " *clone() const = 0;",
+  "//public:",
+  "//  virtual " ++ c ++ " *clone() const = 0;",
   if rp == RecordPositions then "  int line_number, char_number;" else "",
   "};"
   ]
@@ -168,15 +168,15 @@ prCon (c,(f,cs)) = unlines [
   "public:",
   unlines
     ["  std::unique_ptr<" ++ typ ++ "> " ++ var ++ ";" | (typ,_,var) <- cs],
-    "  " ++ f ++ "(const " ++ f ++ " &);",
-    "  " ++ f ++ " &operator=(const " ++f++ " &);",
+    "  " ++ f ++ "(const " ++ f ++ " &&);",
+    "  " ++ f ++ " &operator=(const " ++f++ " &&);",
     "  " ++ f ++ "(" ++ conargs ++ ");",
     -- Typ *p1, PIdent *p2, ListStm *p3);
     "  ~" ++f ++ "();",
     "  virtual void accept(Visitor *v);",
-    "  void swap(" ++f++ " &);",
-    "protected:",
-    "  " ++f++ " *clone() const override;",
+    "//  void swap(" ++f++ " &);",
+    "//protected:",
+    "//  " ++f++ " *clone() const override;",
     "};"
   ]
   where
@@ -185,19 +185,19 @@ prCon (c,(f,cs)) = unlines [
 
 prList :: (String, Bool) -> String
 prList (c, b) = unlines
-  [ "class " ++c++ " : public Visitable, public std::vector<" ++bas++ ">"
+  [ "class " ++c++ " : public Visitable, public std::vector<std::unique_ptr<" ++bas++ ">>"
   , "{"
   , "public:"
   , "  virtual void accept(Visitor *v);"
-  , "protected:"
-  , "  " ++ c ++ " *clone() const override;"
+  , "//protected:"
+  , "//  " ++ c ++ " *clone() const override;"
   , "};"
   , ""
     -- cons for this list type
-  , concat [ c, "* ", "cons", c, "(", bas, " x, ", c, "* xs);" ]
+  , concat [ "std::vector<std::unique_ptr<", c, ">> ", "cons", c, "(std::unique_ptr<", bas, "> x, std::vector<std::unique_ptr<", c, ">> xs);" ]
   ]
   where
-  bas = applyWhen b (++ "*") $ drop 4 c {- drop "List" -}
+  bas = applyWhen b (++ "") $ drop 4 c {- drop "List" -}
 
 
 -- **** Implementation (.C) File Functions **** --
@@ -237,7 +237,7 @@ prListC (c,b) = unlines
   [ "/********************   " ++ c ++ "    ********************/"
   , ""
   , prAcceptC c
-  , prCloneC c
+  --, prCloneC c
   , prConsC c b
   ]
 
@@ -293,20 +293,24 @@ prCopyC :: CAbsRule -> String
 prCopyC (c,cs) = unlines [
   c ++ "::" ++ c ++ "(const" +++ c +++ "& other)",
   "{",
-    unlines ["  " ++ cv ++ " = std::move(std::make_unique<" ++ x ++ ">(other." ++ cv ++ "));" | (x,_,cv) <- cs],
+    unlines ["  " ++ cv ++ " = std::move(other." ++ cv ++ ");" | (x,_,cv) <- cs],
+    "  return *this;",
   "}",
+  -- ImmExp &operator=(ImmExp && other) { factor_ = std::move(other.factor_);return *this; }
   "",
   c +++ "&" ++ c ++ "::" ++ "operator=(const" +++ c +++ "& other)",
   "{",
-  "  " ++ c +++ "tmp(other);",
-  "  swap(tmp);",
+  "  //" ++ c +++ "tmp(other);",
+  "  //swap(tmp);",
+    unlines ["  " ++ cv ++ " = std::move(other." ++ cv ++ ");" | (x,_,cv) <- cs],
   "  return *this;",
+  -- factor_ = std::move(other.factor_);return *this;
   "}",
-  "",
-  "void" +++ c ++ "::swap(" ++ c +++ "& other)",
-  "{",
-  unlines ["  std::swap(" ++ cv ++ ", other." ++ cv ++ ");" | (_,_,cv) <- cs],
-  "}"
+  ""
+  --"void" +++ c ++ "::swap(" ++ c +++ "& other)",
+  --"{",
+  --unlines ["  std::swap(" ++ cv ++ ", other." ++ cv ++ ");" | (_,_,cv) <- cs],
+  --"}"
   ]
  -- where
  --   cloneIf st cv = if st then (cv ++ "->clone()") else cv
