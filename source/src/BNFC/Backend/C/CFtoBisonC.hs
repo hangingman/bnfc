@@ -237,7 +237,7 @@ header mode cf = unlines $ concat [
       , "#endif"
       , ""
       , "typedef struct " ++ name ++ "_buffer_state *YY_BUFFER_STATE;"
-      , "typedef struct yy_buffer_state *YY_BUFFER_STATE;"
+      , ""
       , "extern YY_BUFFER_STATE " ++ name ++ "_scan_string(const char *str, yyscan_t scanner);"
       , "extern void " ++ name ++ "_delete_buffer(YY_BUFFER_STATE buf, yyscan_t scanner);"
       , ""
