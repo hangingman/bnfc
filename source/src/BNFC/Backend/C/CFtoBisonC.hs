@@ -604,7 +604,7 @@ generateActionSTLBeyondAnsi rp inPackage nt f b mbs = reverses ++
     -- The following match only happens in the cons case:
     [el, lst] = applyWhen b reverse ms -- b: left-recursion transformed?
     loc | RecordPositions <- rp
-      = " $$->line_number = @$.first_line; $$->char_number = @$.first_column;"
+      = " $$->line_number = @$.begin.line; $$->char_number = @$.begin.column;"
         | otherwise
       = ""
     reverses  = unwords [m ++"->reverse();" | (m, True) <- mbs]
