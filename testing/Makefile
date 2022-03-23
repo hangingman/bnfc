@@ -1,13 +1,13 @@
 .PHONY: build license test usage
 
 test: build
-	cabal run
+	cabal run bnfc-system-tests
 
 usage: build
-	cabal run --help
+	cabal run bnfc-system-tests -- --help
 
 license: build
-	cabal run --license
+	cabal run bnfc-system-tests -- --license
 
 build:
 	make -C src
