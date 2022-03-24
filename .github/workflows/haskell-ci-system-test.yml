@@ -232,6 +232,6 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
       - name: exec system tests
         run: |
-          $CABAL run bnfc-system-tests -- -n "${PATTERN}"
+          $CABAL v2-run bnfc-system-tests -- -n "${PATTERN}"
         env:
           PATTERN: ${{ matrix.test-filter }}
