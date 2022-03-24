@@ -1,7 +1,9 @@
 .PHONY: build license test usage
 
+SHELL := /bin/bash
+
 test: build
-	cabal run bnfc-system-tests
+	source ./scripts/env && cabal run bnfc-system-tests
 
 usage: build
 	cabal run bnfc-system-tests -- --help
