@@ -226,16 +226,19 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
           restore-keys: ${{ runner.os }}-${{ matrix.compiler }}-
-      - name: install dependencies, install latest bnfc binary
+      - name: install dependencies
         run: |
           $CABAL update $ARG_COMPILER
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
-          $CABAL v2-install all:exes $ARG_COMPILER
+      - name: install latest bnfc binary
+        run: |
+          $CABAL v2-install BNFC:exes $ARG_COMPILER --overwrite-policy=always
+        working-directory: ./source
       - name: exec system tests
         run: |
           source ./scripts/env
           $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
-        working-directory: $GITHUB_WORKSPACE/testing/
+        working-directory: ./testing
         env:
           PATTERN: ${{ matrix.test-pattern }}
