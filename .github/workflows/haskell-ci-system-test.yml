@@ -237,8 +237,9 @@ jobs:
         working-directory: ./source
       - name: exec system tests
         run: |
-          source ./scripts/env
+          . scripts/env
           $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
+        shell: bash
         working-directory: ./testing
         env:
           PATTERN: ${{ matrix.test-pattern }}
