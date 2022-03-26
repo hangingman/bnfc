@@ -33,42 +33,42 @@ jobs:
             setup-method: ghcup
             allow-failure: true
             test-name: C
-            test-filter: "(LBNF|Regression|C\\+|Java|Ocaml|Haskell)"
+            test-pattern: "C[^+]"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: C++
-            test-filter: "(LBNF|Regression|C[^+]|Java|Ocaml|Haskell)"
+            test-pattern: "C\\+"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Java
-            test-filter: "(LBNF|Regression|C|Ocaml|Haskell)"
+            test-pattern: "Java"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Ocaml
-            test-filter: "(LBNF|Regression|C|Java|Haskell)"
+            test-pattern: "Ocaml"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Haskell
-            test-filter: "(LBNF|Regression|C|Java|Ocaml)"
+            test-pattern: "Haskell"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Others
-            test-filter: "(C|Java|Ocaml|Haskell)"
+            test-pattern: "-n (C|Java|Ocaml|Haskell)"
       fail-fast: false
     steps:
       - name: apt
@@ -232,6 +232,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
       - name: exec system tests
         run: |
-          $CABAL v2-run bnfc-system-tests -- -n "${PATTERN}"
+          $CABAL update $ARG_COMPILER
+          $CABAL run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
         env:
-          PATTERN: ${{ matrix.test-filter }}
+          PATTERN: ${{ matrix.test-pattern }}
