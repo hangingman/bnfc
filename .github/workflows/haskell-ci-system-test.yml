@@ -33,48 +33,48 @@ jobs:
             setup-method: ghcup
             allow-failure: true
             test-name: C
-            test-pattern: "C[^+]"
+            test-pattern: "tests:C[^+]"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: C++
-            test-pattern: "C\\+"
+            test-pattern: "tests:C\\+"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Java
-            test-pattern: "Java"
+            test-pattern: "tests:Java"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Ocaml
-            test-pattern: "Ocaml"
+            test-pattern: "tests:Ocaml"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Haskell
-            test-pattern: "Haskell"
+            test-pattern: "tests:Haskell"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
             test-name: Others
-            test-pattern: "-n (C|Java|Ocaml|Haskell)"
+            test-pattern: -n "(tests:C|Java|Ocaml|Haskell)"
       fail-fast: false
     steps:
       - name: apt
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 bison flex openjdk-11-jdk menhir ocaml-nox alex happy
           if [ "${{ matrix.setup-method }}" = ghcup ]; then
             mkdir -p "$HOME/.ghcup/bin"
             curl -sL https://downloads.haskell.org/ghcup/0.1.17.5/x86_64-linux-ghcup-0.1.17.5 > "$HOME/.ghcup/bin/ghcup"
@@ -226,13 +226,16 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
           restore-keys: ${{ runner.os }}-${{ matrix.compiler }}-
-      - name: install dependencies
-        run: |
-          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
-          $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
-      - name: exec system tests
+      - name: install dependencies, install latest bnfc binary
         run: |
           $CABAL update $ARG_COMPILER
-          $CABAL run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
+          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
+          $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
+          $CABAL v2-install all:exes $ARG_COMPILER
+      - name: exec system tests
+        run: |
+          source ./scripts/env
+          $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
+        working-directory: $GITHUB_WORKSPACE/testing/
         env:
           PATTERN: ${{ matrix.test-pattern }}
