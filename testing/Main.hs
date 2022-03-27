@@ -20,7 +20,7 @@ main = do
   if | "--license" `elem` args -> greet license
      | "--help"    `elem` args -> greet usage
      | "-h"        `elem` args -> greet usage
-     | otherwise -> runAllTests args
+     | otherwise -> runAllTests args  -- All other args will pass into HTF
 
 greet :: String -> IO ()
 greet msg = do

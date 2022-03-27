@@ -6,6 +6,7 @@ import BNFC.Backend.Common.Makefile
 import BNFC.PrettyPrint
 import BNFC.Utils                (when)
 
+
 makefile :: String -> String -> SharedOptions -> String -> Doc
 makefile prefix name opts basename =
   vcat $
@@ -76,8 +77,10 @@ makefile prefix name opts basename =
     ]
   where
     testName = "Test" ++ name
-    compileOpt = if Ansi == ansi opts then "--ansi" else "-std=c++14"
-    lexerExt = if Ansi == ansi opts then ".l" else ".ll"
-    parserExt = if Ansi == ansi opts then ".y" else ".yy"
-    cppExt = if Ansi == ansi opts then ".c" else ".cc"
-    hExt = if Ansi == ansi opts then ".h" else ".hh"
+
+    (compileOpt, lexerExt, parserExt, cppExt, hExt) =
+      case (ansi opts, target opts) of
+        (_, TargetCppNoStl)    -> ("--ansi"    , ".l" , ".y" , ".C ", ".H" )
+        (Ansi, TargetCpp)      -> ("--ansi"    , ".l" , ".y" , ".c ", ".h" )
+        (BeyondAnsi, _)        -> ("-std=c++14", ".ll", ".yy", ".cc", ".hh")
+        (_, _)                 -> ("", "", "", "", "")
