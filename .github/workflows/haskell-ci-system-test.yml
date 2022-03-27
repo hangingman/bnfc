@@ -28,13 +28,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - compiler: ghc-9.2.2
-            compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: C
-            test-pattern: "tests:C[^+]"
+          # - compiler: ghc-9.2.2
+          #   compilerKind: ghc
+          #   compilerVersion: 9.2.2
+          #   setup-method: ghcup
+          #   allow-failure: true
+          #   test-name: C
+          #   test-pattern: "tests:C[^+]"
           - compiler: ghc-9.2.2
             compilerKind: ghc
             compilerVersion: 9.2.2
@@ -42,40 +42,40 @@ jobs:
             allow-failure: true
             test-name: C++
             test-pattern: "tests:C\\+"
-          - compiler: ghc-9.2.2
-            compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Java
-            test-pattern: "tests:Java"
-          - compiler: ghc-9.2.2
-            compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Ocaml
-            test-pattern: "tests:Ocaml"
-          - compiler: ghc-9.2.2
-            compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Haskell
-            test-pattern: "tests:Haskell"
-          - compiler: ghc-9.2.2
-            compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Others
-            test-pattern: -n "(tests:C|Java|Ocaml|Haskell)"
+          # - compiler: ghc-9.2.2
+          #   compilerKind: ghc
+          #   compilerVersion: 9.2.2
+          #   setup-method: ghcup
+          #   allow-failure: true
+          #   test-name: Java
+          #   test-pattern: "tests:Java"
+          # - compiler: ghc-9.2.2
+          #   compilerKind: ghc
+          #   compilerVersion: 9.2.2
+          #   setup-method: ghcup
+          #   allow-failure: true
+          #   test-name: Ocaml
+          #   test-pattern: "tests:Ocaml"
+          # - compiler: ghc-9.2.2
+          #   compilerKind: ghc
+          #   compilerVersion: 9.2.2
+          #   setup-method: ghcup
+          #   allow-failure: true
+          #   test-name: Haskell
+          #   test-pattern: "tests:Haskell"
+          # - compiler: ghc-9.2.2
+          #   compilerKind: ghc
+          #   compilerVersion: 9.2.2
+          #   setup-method: ghcup
+          #   allow-failure: true
+          #   test-name: Others
+          #   test-pattern: -n "(tests:C|Java|Ocaml|Haskell)"
       fail-fast: false
     steps:
       - name: apt
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 bison flex openjdk-11-jdk menhir ocaml-nox alex happy
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 sudo bison flex openjdk-11-jdk menhir ocaml-nox alex happy
           if [ "${{ matrix.setup-method }}" = ghcup ]; then
             mkdir -p "$HOME/.ghcup/bin"
             curl -sL https://downloads.haskell.org/ghcup/0.1.17.5/x86_64-linux-ghcup-0.1.17.5 > "$HOME/.ghcup/bin/ghcup"
@@ -244,6 +244,8 @@ jobs:
         working-directory: ./source
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
       - name: exec system tests
         run: |
           ls -la
@@ -252,15 +254,3 @@ jobs:
           cd testing && $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
         env:
           PATTERN: ${{ matrix.test-pattern }}
-
-
-
-
-
-
-
-
-
-
-
-
