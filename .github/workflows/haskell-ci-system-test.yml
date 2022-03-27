@@ -242,6 +242,8 @@ jobs:
         run: |
           $CABAL v2-install BNFC:exes $ARG_COMPILER --overwrite-policy=always
         working-directory: ./source
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - name: exec system tests
         run: |
           ls -la
