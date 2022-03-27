@@ -249,5 +249,6 @@ jobs:
           source scripts/env
           $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
         working-directory: ./source/testing
+        shell: bash
         env:
           PATTERN: ${{ matrix.test-pattern }}
