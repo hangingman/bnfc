@@ -12,13 +12,13 @@
 #
 # REGENDATA ("0.14.3",["github","cabal.project"])
 #
-name: Haskell-CI (SystemTest)
+name: Haskell-CI
 on:
   - push
   - pull_request
 jobs:
   linux:
-    name: Haskell-CI (SystemTest) - Linux - ${{ matrix.test-name }}
+    name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-18.04
     timeout-minutes:
       60
@@ -33,49 +33,52 @@ jobs:
             compilerVersion: 9.2.2
             setup-method: ghcup
             allow-failure: true
-            test-name: C
-            test-pattern: "tests:C[^+]"
-          - compiler: ghc-9.2.2
+          - compiler: ghc-9.0.2
             compilerKind: ghc
-            compilerVersion: 9.2.2
+            compilerVersion: 9.0.2
             setup-method: ghcup
-            allow-failure: true
-            test-name: C++
-            test-pattern: "tests:C\\+"
-          - compiler: ghc-9.2.2
+            allow-failure: false
+          - compiler: ghc-8.10.7
             compilerKind: ghc
-            compilerVersion: 9.2.2
+            compilerVersion: 8.10.7
             setup-method: ghcup
-            allow-failure: true
-            test-name: Java
-            test-pattern: "tests:Java"
-          - compiler: ghc-9.2.2
+            allow-failure: false
+          - compiler: ghc-8.8.4
             compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Ocaml
-            test-pattern: "tests:Ocaml"
-          - compiler: ghc-9.2.2
+            compilerVersion: 8.8.4
+            setup-method: hvr-ppa
+            allow-failure: false
+          - compiler: ghc-8.6.5
             compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Haskell
-            test-pattern: "tests:Haskell"
-          - compiler: ghc-9.2.2
+            compilerVersion: 8.6.5
+            setup-method: hvr-ppa
+            allow-failure: false
+          - compiler: ghc-8.4.4
             compilerKind: ghc
-            compilerVersion: 9.2.2
-            setup-method: ghcup
-            allow-failure: true
-            test-name: Others
-            test-pattern: -n "(tests:C|Java|Ocaml|Haskell)"
+            compilerVersion: 8.4.4
+            setup-method: hvr-ppa
+            allow-failure: false
+          - compiler: ghc-8.2.2
+            compilerKind: ghc
+            compilerVersion: 8.2.2
+            setup-method: hvr-ppa
+            allow-failure: false
+          - compiler: ghc-8.0.2
+            compilerKind: ghc
+            compilerVersion: 8.0.2
+            setup-method: hvr-ppa
+            allow-failure: false
+          - compiler: ghc-7.10.3
+            compilerKind: ghc
+            compilerVersion: 7.10.3
+            setup-method: hvr-ppa
+            allow-failure: false
       fail-fast: false
     steps:
       - name: apt
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 sudo bison flex openjdk-11-jdk menhir ocaml-nox alex happy
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5
           if [ "${{ matrix.setup-method }}" = ghcup ]; then
             mkdir -p "$HOME/.ghcup/bin"
             curl -sL https://downloads.haskell.org/ghcup/0.1.17.5/x86_64-linux-ghcup-0.1.17.5 > "$HOME/.ghcup/bin/ghcup"
@@ -235,17 +238,27 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ matrix.compiler }}-
       - name: install dependencies
         run: |
-          $CABAL update $ARG_COMPILER
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
-      - name: install latest bnfc binary
+          $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
+      - name: build w/o tests
         run: |
-          $CABAL v2-install BNFC:exes $ARG_COMPILER --overwrite-policy=always
-        working-directory: ./source
-      - name: exec system tests
+          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
+      - name: build
         run: |
-          source scripts/env
-          $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
-        working-directory: ./source/testing
-        shell: bash
-        env:
-          PATTERN: ${{ matrix.test-pattern }}
+          $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always
+      - name: tests
+        run: |
+          $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
+      - name: cabal check
+        run: |
+          cd ${PKGDIR_BNFC} || false
+          ${CABAL} -vnormal check
+          if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then cd ${PKGDIR_bnfc_system_tests} || false ; fi
+          if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then ${CABAL} -vnormal check ; fi
+      - name: haddock
+        run: |
+          $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
+      - name: unconstrained build
+        run: |
+          rm -f cabal.project.local
+          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
