@@ -242,15 +242,12 @@ jobs:
         run: |
           $CABAL v2-install BNFC:exes $ARG_COMPILER --overwrite-policy=always
         working-directory: ./source
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
       - name: exec system tests
         run: |
           ls -la
           pwd
-          cd testing && . scripts/env
-          cd testing && $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
+          source scripts/env
+          $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
+        working-directory: ./source/testing
         env:
           PATTERN: ${{ matrix.test-pattern }}
