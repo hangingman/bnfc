@@ -469,10 +469,10 @@ scannerH mode = unlines
   , "    )"
   , "#endif"
   , ""
-  , "#ifndef __FLEX_LEXER_H"
-  , "#define yyFlexLexer BnfcFlexLexer" -- This name is dummy
-  , "#include \"FlexLexer.h\""
-  , "#undef yyFlexLexer"
+  , "#if !defined(__FLEX_LEXER_H) && !defined(BnfcFlexLexer)"
+  , "  #define yyFlexLexer BnfcFlexLexer" -- This name is dummy
+  , "  #include \"FlexLexer.h\""
+  , "  #undef yyFlexLexer"
   , "#endif"
   , ""
   , "#include \"Bison.hh\""

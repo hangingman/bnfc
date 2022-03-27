@@ -245,7 +245,7 @@ jobs:
         run: |
           ln -s $HC $HOME/.cabal/bin/ghc
           source scripts/env
-          $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- ${PATTERN}
+          $CABAL v2-run $ARG_COMPILER bnfc-system-tests -- --fail-fast ${PATTERN}
         working-directory: ./source/testing
         shell: bash
         env:
