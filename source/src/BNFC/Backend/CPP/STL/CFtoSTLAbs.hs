@@ -199,7 +199,7 @@ prCon mode (c,(f,cs)) =
           "    " ++f++ "(" ++ conargs ++ "):" +++ c +++ "(){};",
         "",
         "    virtual void accept(Visitor *v) override;",
-        "    " ++ wrapSharedPtr c +++ " clone() const override;",
+        "    " ++ wrapSharedPtr c +++ " clone() const;",
         "};"
         ];
       }
