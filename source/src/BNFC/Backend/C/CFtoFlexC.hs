@@ -280,7 +280,7 @@ restOfFlex mode cf env = unlines $ concat
     ]
   , userDefTokens
   , ifC catString  $ lexStrings mode (prefix++"_STRING_") (prefix++"_ERROR_")
-  , ifC catChar    $ lexChars   "yylval" (prefix++"_CHAR_")
+  , ifC catChar    $ lexChars   mode "yylval" (prefix++"_CHAR_")
   , ifC catDouble  [ "<INITIAL>{DIGIT}+\".\"{DIGIT}+(\"e\"(\\-)?{DIGIT}+)?      \t " ++ (yylvalCopy mode "double" "yytext") ++ " return " ++prefix++ "_DOUBLE_;" ]
   , ifC catInteger [ "<INITIAL>{DIGIT}+      \t " ++ (yylvalCopy mode "int" "yytext") ++ " return " ++prefix++ "_INTEGER_;" ]
   , ifC catIdent   [ "<INITIAL>{LETTER}{IDENT}*      \t " ++ (yylvalCopy mode "string" "yytext") ++ " return " ++prefix++ "_IDENT_;" ]
@@ -340,6 +340,7 @@ yylvalCopy mode typeStr arg =
   case (beyondAnsi mode, typeStr) of
     (True , "string") -> "yylval->emplace<std::string>(" ++arg++ ");"
     (True , "int")    -> "yylval->emplace<int>(atoi(" ++arg++ "));"
+    (True , "double") -> "yylval->emplace<double>(atof(" ++arg++ "));"
     (True , _       ) -> "yylval->emplace<" ++typeStr++ ">(" ++arg++ ");"
     (False, "string") -> "yylval->_string = strdup(" ++arg++ ");"
     (False, "int"   ) -> "yylval->_int    = atoi(" ++arg++ ");"
@@ -379,8 +380,20 @@ lexStrings mode stringToken errorToken =
     ]
 
 -- | Lexing of characters, converting escaped characters.
-lexChars :: String -> String -> [String]
-lexChars yylval charToken =
+lexChars :: ParserMode -> String -> String -> [String]
+lexChars mode yylval charToken =
+  if isBisonUseVariant mode then
+    [ "<INITIAL>\"'\" \tBEGIN CHAR;"
+    , "<CHAR>\\\\      \t BEGIN CHARESC;"
+    , "<CHAR>[^']      \t BEGIN CHAREND; " ++ yylval ++ "->emplace<char>(yytext[0]); return " ++ charToken ++ ";"
+    , "<CHARESC>f      \t BEGIN CHAREND; " ++ yylval ++ "->emplace<char>('\\f');     return " ++ charToken ++ ";"
+    , "<CHARESC>n      \t BEGIN CHAREND; " ++ yylval ++ "->emplace<char>('\\n');     return " ++ charToken ++ ";"
+    , "<CHARESC>r      \t BEGIN CHAREND; " ++ yylval ++ "->emplace<char>('\\r');     return " ++ charToken ++ ";"
+    , "<CHARESC>t      \t BEGIN CHAREND; " ++ yylval ++ "->emplace<char>('\\t');     return " ++ charToken ++ ";"
+    , "<CHARESC>.      \t BEGIN CHAREND; " ++ yylval ++ "->emplace<char>(yytext[0]); return " ++ charToken ++ ";"
+    , "<CHAREND>\"'\"      \t BEGIN INITIAL;"
+    ]
+  else
     [ "<INITIAL>\"'\" \tBEGIN CHAR;"
     , "<CHAR>\\\\      \t BEGIN CHARESC;"
     , "<CHAR>[^']      \t BEGIN CHAREND; " ++ yylval ++ "->_char = yytext[0]; return " ++ charToken ++ ";"
