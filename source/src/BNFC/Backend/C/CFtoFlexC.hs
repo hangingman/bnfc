@@ -79,8 +79,8 @@ beyondAnsi = \case
 
 isBisonUseUnion :: ParserMode -> Bool
 isBisonUseUnion = \case
-  CppParser _ _ ansi | ansi == Ansi -> True
-  _ -> False
+  CppParser _ _ ansi | ansi == BeyondAnsi -> False
+  _ -> True
 
 isBisonUseVariant :: ParserMode -> Bool
 isBisonUseVariant = \case

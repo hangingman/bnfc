@@ -19,7 +19,7 @@ makefile prefix name opts basename =
     , mkVar "BISON" "bison"
     , mkVar "BISON_OPTS" ("-t -p" ++ prefix)
     , ""
-    , if (ansi opts /= Ansi) then
+    , if isBeyondAnsiCpp then
         mkVar "OBJS" "Absyn.o Buffer.o Lexer.o Parser.o Driver.o Printer.o"
       else
         mkVar "OBJS" "Absyn.o Buffer.o Lexer.o Parser.o Printer.o"
@@ -53,7 +53,7 @@ makefile prefix name opts basename =
         , "${CC} ${OBJS} Test.o -o " ++ testName ]
     , mkRule "Absyn.o" [ "Absyn" ++ cppExt, "Absyn" ++ hExt ]
         [ "${CC} ${CCFLAGS} -c Absyn" ++ cppExt ]
-    , when (ansi opts /= Ansi)
+    , when isBeyondAnsiCpp
       mkRule "Driver.o" [ "Driver" ++ cppExt, "Driver" ++ hExt ]
       [ "${CC} ${CCFLAGS} -c Driver" ++ cppExt ]
     , mkRule "Buffer.o" [ "Buffer" ++ cppExt, "Buffer" ++ hExt ]
@@ -77,7 +77,7 @@ makefile prefix name opts basename =
     ]
   where
     testName = "Test" ++ name
-
+    isBeyondAnsiCpp = and [ansi opts == BeyondAnsi, target opts == TargetCpp]
     (compileOpt, lexerExt, parserExt, cppExt, hExt) =
       case (ansi opts, target opts) of
         (_, TargetCppNoStl)    -> ("--ansi"    , ".l" , ".y" , ".C ", ".H" )

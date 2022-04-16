@@ -31,7 +31,10 @@ cf2CVisitSkel opts useSTL inPackage cf =
  )
  where
    cab = cf2cabs cf
-   hExt = if Ansi == ansi opts then ".h" else ".hh"
+   hExt = case (ansi opts, useSTL) of
+     (BeyondAnsi, True ) -> ".hh"
+     (      Ansi, True ) -> ".h"
+     (_         , False) -> ".H"
 
 -- **** Header (.H) File Functions ****
 
