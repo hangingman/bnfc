@@ -248,7 +248,7 @@ prList mode (c, b) = case mode of {
       , ""
       , "    virtual void accept(Visitor *v);"
       , "    " ++ wrapSharedPtr c +++ " clone() const;"
-      , "    void cons(" ++ wrapSharedPtr childClass ++ ");"
+      , "    void cons(" ++ wrapSharedPtrIf isNotBaseClass childClass ++ ");"
       , "    void reverse();"
       , "};"
       , ""
@@ -258,6 +258,8 @@ prList mode (c, b) = case mode of {
     childClass = drop 4 c
     childClassVarName = "list" ++ map toLower childClass ++ "_"
     bas = applyWhen b (++ "*") $ drop 4 c {- drop "List" -}
+    -- if list element is primitive type, not to use smart-ptr for argument type
+    isNotBaseClass = not $ elem childClass [baseClass | (baseClass,_) <- basetypes]
 
 
 -- **** Implementation (.C) File Functions **** --
@@ -347,8 +349,11 @@ prConsC mode c b = case mode of {
         , "}"
         ];
     CppStdBeyondAnsi _ -> unlines [
-        concat [ "void ", c, "::cons(", wrapSharedPtr bas, " x) {" ]
-        , "    " ++inner++ ".push_front(x);"
+        concat [ "void ", c, "::cons(", wrapSharedPtrIf isNotBaseClass bas, " x) {" ]
+        , if isNotBaseClass then
+            "    " ++inner++ ".push_front(x);"
+          else
+            "    " ++inner++ ".push_front(std::make_unique<" ++bas++ ">(x));"
         , "}"
         , ""
         , "void" +++ c ++ "::reverse() {"
@@ -362,6 +367,9 @@ prConsC mode c b = case mode of {
       CppStdBeyondAnsi _ -> drop 4 c;
       }
     inner = map toLower c ++ "_"
+    -- if list element is primitive type, not to use smart-ptr for argument type
+    isNotBaseClass = not $ elem bas [baseClass | (baseClass,_) <- basetypes]
+
 
 --The constructor assigns the parameters to the corresponding instance variables.
 prConstructorC :: CppStdMode -> CAbsRule -> String

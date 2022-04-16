@@ -29,6 +29,7 @@ import Data.Char  (toLower)
 import BNFC.CF
 import BNFC.Utils
 import BNFC.Backend.Common
+import BNFC.Backend.Common.OOAbstract
 import BNFC.Backend.Common.NamedVariables
 import BNFC.Backend.Common.StrUtils (renderCharOrString)
 import BNFC.Backend.CPP.Common      (CppStdMode(..))
@@ -478,11 +479,18 @@ prListRuleBeyondAnsi (Rule _ _ items _) = for items $ \case
   Right t       -> "render(" <> text (snd (renderCharOrString t)) <> ");"
   Left c
     | Just{} <- maybeTokenCat c
-                -> "visit" <> dat <> "(*i);"
+                -> "visit" <> dat <> "(" <> visitArg <> ");"
     | isList c  -> "iter" <> dat <> "(std::next(i,1), j);"
     | otherwise -> "(*i)->accept(this);"
     where
     dat = text $ identCat $ normCat c
+    bas = show dat
+    isNotBaseClass = not $ elem bas [baseClass | (baseClass,_) <- basetypes]
+    visitArg = if isNotBaseClass then
+                 "*i"
+               else
+                 "*i->get()" -- use raw-pointer for primitive types
+
 
 prListRuleAnsi :: IsFun a => Rul a -> [Doc]
 prListRuleAnsi (Rule _ _ items _) = for items $ \case
@@ -580,14 +588,14 @@ prPrintItem :: CppStdMode -> String -> Either (Cat, Doc) String -> String
 prPrintItem _    _    (Right t)     = "  render(" ++ snd (renderCharOrString t) ++ ");"
 prPrintItem mode pre  (Left (c, nt))
   | Just t <- maybeTokenCat c = "  visit" ++ t ++ "(" ++ pre ++ s ++ ");"
-  | isList c                  = "  " ++ setI (precCat c) ++ "visit" ++ elt ++ "(" ++ pre ++ s ++ toRawPtr ++ ");"
+  | isList c                  = "  " ++ setI (precCat c) ++ "visit" ++ elt ++ "(" ++ pre ++ visitArg ++ ");"
   | otherwise                 = "  " ++ setI (precCat c) ++ pre ++ s ++ "->accept(this);"
   where
     s   = render nt
     elt = identCat $ normCat c
-    toRawPtr = case mode of
-      CppStdBeyondAnsi _ -> ".get()"
-      CppStdAnsi       _ -> ""
+    visitArg = case mode of
+      CppStdBeyondAnsi _ -> s ++ ".get()"
+      _                  -> s
 
 
 {- **** Abstract Syntax Tree Printer **** -}
@@ -602,7 +610,7 @@ prShowData True mode (cat@(ListCat c), _) = unlines
        vname++"->begin() ; i != " ++vname ++"->end() ; ++i)",
   "  {",
   if isTokenCat c
-    then "    visit" ++ baseName cl ++ "(*i) ;"
+    then "    visit" ++ baseName cl ++ "(" ++visitArg++ ") ;"
     else "    (*i)->accept(this);",
   case mode of
     CppStdBeyondAnsi _ -> "    if (i != std::prev(" ++ vname ++ "->end(), 1)) bufAppend(\", \");"
@@ -614,6 +622,11 @@ prShowData True mode (cat@(ListCat c), _) = unlines
   where
     cl    = identCat (normCat cat)
     vname = map toLower cl
+    isNotBaseClass = not $ elem (baseName cl) [baseClass | (baseClass,_) <- basetypes]
+    visitArg = case (mode, isNotBaseClass) of
+      (CppStdBeyondAnsi _, False) -> "*i->get()"
+      (_, _)                      -> "*i"
+
 
 prShowData False _ (cat@(ListCat c), _) =
  unlines
