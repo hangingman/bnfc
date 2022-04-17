@@ -351,9 +351,9 @@ prConsC mode c b = case mode of {
     CppStdBeyondAnsi _ -> unlines [
         concat [ "void ", c, "::cons(", wrapSharedPtrIf isNotBaseClass bas, " x) {" ]
         , if isNotBaseClass then
-            "    " ++inner++ ".push_front(x);"
+            "    " ++inner++ ".push_back(x);"
           else
-            "    " ++inner++ ".push_front(std::make_unique<" ++bas++ ">(x));"
+            "    " ++inner++ ".push_back(std::make_unique<" ++bas++ ">(x));"
         , "}"
         , ""
         , "void" +++ c ++ "::reverse() {"
