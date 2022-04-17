@@ -129,7 +129,6 @@ prelude stringLiterals mode = unlines $ concat
         unlines
         [
           "%option nodefault noyywrap c++"
-        , "%option prefix=\"Bnfc\""
         ]
       else
         unlines
@@ -294,7 +293,7 @@ restOfFlex mode cf env = unlines $ concat
       "namespace " ++ns++ " {"
       , ""
       , "" ++camelCaseName++ "Scanner::" ++camelCaseName++ "Scanner(std::istream *in)"
-      , "    : BnfcFlexLexer(in)"
+      , "    : yyFlexLexer(in)"
       , "{"
       , "    loc = new " ++camelCaseName++ "::" ++camelCaseName++ "Parser::location_type();"
       , "}"
@@ -313,9 +312,9 @@ restOfFlex mode cf env = unlines $ concat
       , "#undef yylex"
       , "#endif"
       , ""
-      , "int BnfcFlexLexer::yylex()"
+      , "int yyFlexLexer::yylex()"
       , "{"
-      , "    std::cerr << \"in BnfcFlexLexer::yylex() !\" << std::endl;"
+      , "    std::cerr << \"in yyFlexLexer::yylex() !\" << std::endl;"
       , "    return 0;"
       , "}"
     ]

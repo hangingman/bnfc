@@ -469,10 +469,10 @@ scannerH mode = unlines
   , "    )"
   , "#endif"
   , ""
-  , "#if !defined(__FLEX_LEXER_H) && !defined(BnfcFlexLexer)"
-  , "  #define yyFlexLexer BnfcFlexLexer" -- This name is dummy
-  , "  #include \"FlexLexer.h\""
-  , "  #undef yyFlexLexer"
+  -- Inherit from yyFlexLexer, create a subclass with naming "XXXScanner"
+  -- https://stackoverflow.com/a/40665154/2565527
+  , "#if !defined(yyFlexLexerOnce)"
+  , "#   include \"FlexLexer.h\""
   , "#endif"
   , ""
   , "#include \"Bison.hh\""
@@ -480,7 +480,7 @@ scannerH mode = unlines
   , ""
   , "namespace " ++ns++ "{"
   , ""
-  , "class " ++camelCaseName++ "Scanner : public BnfcFlexLexer {"
+  , "class " ++camelCaseName++ "Scanner : public yyFlexLexer {"
   , "public:"
   , ""
   , "    " ++camelCaseName++ "Scanner(std::istream *in);"
