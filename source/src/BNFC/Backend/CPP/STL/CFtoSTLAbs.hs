@@ -102,7 +102,7 @@ mkHFile rp mode inPackage cabs cf = unlines
   "",
   unlines [prList mode c | c <- listtypes cabs],
   "",
-  definedRules Nothing cf
+  definedRules mode Nothing cf
   "/********************   Defined Constructors    ********************/",
   nsEnd inPackage,
   "#endif"
@@ -274,7 +274,7 @@ mkCFile mode inPackage cabs cf = unlines $ [
   nsStart inPackage,
   unlines [prConC  mode c r  | (c,rs) <- signatures cabs, r <- rs],
   unlines [prListC mode l | l <- listtypes cabs],
-  definedRules (Just $ LC nil cons) cf
+  definedRules mode (Just $ LC nil cons) cf
   "/********************   Defined Constructors    ********************/",
   nsEnd inPackage
   ]
