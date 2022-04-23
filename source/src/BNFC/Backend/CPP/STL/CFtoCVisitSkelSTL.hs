@@ -146,11 +146,9 @@ prList mode True (cl,b) = unlines [
  where
    vname = mkVariable cl
    childCl = drop 4 cl  -- drop "List"
-   isNotBaseClass = not $ elem childCl [baseClass | (baseClass,_) <- basetypes]
-   visitArg = case (mode, isNotBaseClass) of
-     (CppStdBeyondAnsi _, False) -> "*i->get()";
-     (CppStdBeyondAnsi _, _)     -> "*i";
-     (CppStdAnsi _      , _)     -> "*i";
+   visitArg = case mode of
+     CppStdBeyondAnsi _ -> "*i->get()"
+     _                  -> "*i"
 
 
 -- useSTL = False

@@ -390,8 +390,8 @@ mkCFile mode useStl inPackage cf groups hExt = concat
 
 -- | Generates methods for the Pretty Printer.
 prPrintData :: Bool -> CppStdMode -> Maybe String -> CF -> (Cat, [Rule]) -> String
-prPrintData True mode _ _ (cat@(ListCat _), rules) =
-  render $ genPrintVisitorList (mode, cat, rules)
+prPrintData True mode _ cf (cat@(ListCat _), rules) =
+  render $ genPrintVisitorList (mode, cat, rules, cf)
 prPrintData False mode _ _ (cat@(ListCat _), rules) =
   genPrintVisitorListNoStl (mode, cat, rules)
 prPrintData _ _ _inPackage cf (TokenCat cat, _rules) |
@@ -406,8 +406,8 @@ prPrintData _ mode inPackage _cf (cat, rules) =
 
 -- | Generate pretty printer visitor for a list category (STL version).
 --
-genPrintVisitorList :: (CppStdMode, Cat, [Rule]) -> Doc
-genPrintVisitorList (mode, cat@(ListCat _), rules) = vcat
+genPrintVisitorList :: (CppStdMode, Cat, [Rule], CF) -> Doc
+genPrintVisitorList (mode, cat@(ListCat _), rules, cf) = vcat
   [ "void PrintAbsyn::visit" <> lty <> parens (ltyarg <> "*" <+> varg)
   , codeblock 2
     [ "iter" <> lty <> parens (vname <> "->begin()" <> comma <+> vname <> "->end()") <> semi ]
@@ -439,6 +439,8 @@ genPrintVisitorList (mode, cat@(ListCat _), rules) = vcat
   , ""
   ]
   where
+    cabs = cf2cabs cf
+    primitives = [c | (c,_) <- basetypes] ++ tokentypes cabs
     cl        = identCat (normCat cat)
     lty       = text cl                   -- List type
     ltyarg    = text cl                   -- List type arg
@@ -446,19 +448,35 @@ genPrintVisitorList (mode, cat@(ListCat _), rules) = vcat
     vname     = text $ map toLower cl
     varg      = text $ (map toLower cl)
     prules    = sortRulesByPrecedence rules
-    swRules f = switchByPrecedence "_i_" $
-                map (second $ sep . prListRuleFn) $
-                uniqOn fst $ filter f prules
-                -- Discard duplicates, can only handle one rule per precedence.
+    -- Discard duplicates, can only handle one rule per precedence.
+    swRules f = switchByPrecedence "_i_" $ map (second $ sep . prListRuleFn) $ uniqOn fst $ filter f prules
     docs0     = swRules isNilFun
     docs1     = swRules isOneFun
     docs2     = swRules isConsFun
+
+    -- | Only render the rhs (items) of a list rule.
+    prListRuleFn :: IsFun a => Rul a -> [Doc]
+    prListRuleFn (Rule _ _ items _) = for items $ \case
+      Right t       -> "render(" <> text (snd (renderCharOrString t)) <> ");"
+      Left c
+        | Just{} <- maybeTokenCat c
+                    -> "visit" <> dat <> "(" <> visitArg <> ");"
+        | isList c  -> "iter" <> dat <> "(" <> nextArg <> ");"
+        | otherwise -> "(*i)->accept(this);"
+        where
+        dat = text $ identCat $ normCat c
+        bas = show dat
+        isPrimitive = elem bas primitives
+        nextArg = case mode of
+                    CppStdBeyondAnsi _ -> "std::next(i,1), j"
+                    CppStdAnsi       _ -> "i+1, j"
+        visitArg = case (mode, isPrimitive) of
+                     (CppStdBeyondAnsi _, _) -> "*i->get()"
+                     (CppStdAnsi       _, _)     -> "*i"
+
     prevJ = case mode of
       CppStdBeyondAnsi _ -> "std::prev(j, 1)"
       CppStdAnsi       _ -> "j-1"
-    prListRuleFn = case mode of
-      CppStdBeyondAnsi _ -> prListRuleBeyondAnsi
-      CppStdAnsi       _ -> prListRuleAnsi
 
 genPrintVisitorList _ = error "genPrintVisitorList expects a ListCat"
 
@@ -472,36 +490,6 @@ genPositionToken cat = unlines $
   , ""
   ]
 
--- | Only render the rhs (items) of a list rule.
-
-prListRuleBeyondAnsi :: IsFun a => Rul a -> [Doc]
-prListRuleBeyondAnsi (Rule _ _ items _) = for items $ \case
-  Right t       -> "render(" <> text (snd (renderCharOrString t)) <> ");"
-  Left c
-    | Just{} <- maybeTokenCat c
-                -> "visit" <> dat <> "(" <> visitArg <> ");"
-    | isList c  -> "iter" <> dat <> "(std::next(i,1), j);"
-    | otherwise -> "(*i)->accept(this);"
-    where
-    dat = text $ identCat $ normCat c
-    bas = show dat
-    isNotBaseClass = not $ elem bas [baseClass | (baseClass,_) <- basetypes]
-    visitArg = if isNotBaseClass then
-                 "*i"
-               else
-                 "*i->get()" -- use raw-pointer for primitive types
-
-
-prListRuleAnsi :: IsFun a => Rul a -> [Doc]
-prListRuleAnsi (Rule _ _ items _) = for items $ \case
-  Right t       -> "render(" <> text (snd (renderCharOrString t)) <> ");"
-  Left c
-    | Just{} <- maybeTokenCat c
-                -> "visit" <> dat <> "(*i);"
-    | isList c  -> "iter" <> dat <> "(i+1, j);"
-    | otherwise -> "(*i)->accept(this);"
-    where
-    dat = text $ identCat $ normCat c
 
 -- This is the only part of the pretty printer that differs significantly
 -- between the versions with and without STL.
@@ -622,10 +610,9 @@ prShowData True mode (cat@(ListCat c), _) = unlines
   where
     cl    = identCat (normCat cat)
     vname = map toLower cl
-    isNotBaseClass = not $ elem (baseName cl) [baseClass | (baseClass,_) <- basetypes]
-    visitArg = case (mode, isNotBaseClass) of
-      (CppStdBeyondAnsi _, False) -> "*i->get()"
-      (_, _)                      -> "*i"
+    visitArg = case mode of
+      CppStdBeyondAnsi _ -> "*i->get()"
+      _                  -> "*i"
 
 
 prShowData False _ (cat@(ListCat c), _) =

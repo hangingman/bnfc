@@ -35,9 +35,9 @@ import BNFC.Backend.CPP.STL.STLUtils
 --The result is two files (.H file, .C file)
 
 cf2CPPAbs :: RecordPositions -> CppStdMode -> Maybe String -> String -> CF -> (String, String)
-cf2CPPAbs rp mode inPackage _ cf = (mkHFile rp mode inPackage cab cf, mkCFile mode inPackage cab cf)
+cf2CPPAbs rp mode inPackage _ cf = (mkHFile rp mode inPackage cabs cf, mkCFile mode inPackage cabs cf)
   where
-    cab = cf2cabs cf
+    cabs = cf2cabs cf
 
 
 -- **** Header (.H) File Functions **** --
@@ -100,7 +100,7 @@ mkHFile rp mode inPackage cabs cf = unlines
   "",
   unlines [prCon mode (c,r) | (c,rs) <- signatures cabs, r <- rs],
   "",
-  unlines [prList mode c | c <- listtypes cabs],
+  unlines [prList mode primitives c | c <- listtypes cabs],
   "",
   definedRules mode Nothing cf
   "/********************   Defined Constructors    ********************/",
@@ -110,6 +110,7 @@ mkHFile rp mode inPackage cabs cf = unlines
  where
   classes = allClasses cabs
   hdef = nsDefine inPackage "ABSYN_HEADER"
+  primitives = [c | (c,_) <- basetypes] ++ tokentypes cabs
 
 -- auxiliaries
 
@@ -215,8 +216,8 @@ prCon mode (c,(f,cs)) =
        ;
        }
 
-prList :: CppStdMode -> (String, Bool) -> String
-prList mode (c, b) = case mode of {
+prList :: CppStdMode -> [String] -> (String, Bool) -> String
+prList mode primitives (c, b) = case mode of {
   CppStdAnsi _ -> unlines [
       "class " ++c++ " : public Visitable, public std::vector<" ++bas++ ">"
       , "{"
@@ -259,7 +260,8 @@ prList mode (c, b) = case mode of {
     childClassVarName = "list" ++ map toLower childClass ++ "_"
     bas = applyWhen b (++ "*") $ drop 4 c {- drop "List" -}
     -- if list element is primitive type, not to use smart-ptr for argument type
-    isNotBaseClass = not $ elem childClass [baseClass | (baseClass,_) <- basetypes]
+    -- OK
+    isNotBaseClass = not $ elem childClass primitives
 
 
 -- **** Implementation (.C) File Functions **** --
@@ -273,7 +275,7 @@ mkCFile mode inPackage cabs cf = unlines $ [
   "#include \"Absyn"++hExt++"\"",
   nsStart inPackage,
   unlines [prConC  mode c r  | (c,rs) <- signatures cabs, r <- rs],
-  unlines [prListC mode l | l <- listtypes cabs],
+  unlines [prListC mode primitives l | l <- listtypes cabs],
   definedRules mode (Just $ LC nil cons) cf
   "/********************   Defined Constructors    ********************/",
   nsEnd inPackage
@@ -281,6 +283,7 @@ mkCFile mode inPackage cabs cf = unlines $ [
   where
   nil  t = (,dummyType) $ concat [ "new List", identType t, "()" ]
   cons t = (,dummyType) $ concat [ "consList", identType t ]
+  primitives = [c | (c,_) <- basetypes] ++ tokentypes cabs
   hExt = case mode of
     CppStdAnsi _ -> ".h";
     CppStdBeyondAnsi _ -> ".hh";
@@ -297,12 +300,12 @@ prConC mode c fcs@(f,_) = unlines [
   ""
  ]
 
-prListC :: CppStdMode -> (String,Bool) -> String
-prListC mode (c,b) = unlines
+prListC :: CppStdMode -> [String] -> (String,Bool) -> String
+prListC mode primitives (c,b) = unlines
   [ "/********************   " ++ c ++ "    ********************/"
   , prAcceptC mode c
   , prCloneC mode c c
-  , prConsC mode c b
+  , prConsC mode primitives c b
   ]
 
 --The standard accept function for the Visitor pattern
@@ -340,8 +343,8 @@ prCloneC mode f c = case mode of {
   }
 
 -- | Make a list constructor definition.
-prConsC :: CppStdMode -> String -> Bool -> String
-prConsC mode c b = case mode of {
+prConsC :: CppStdMode -> [String] -> String -> Bool -> String
+prConsC mode primitives c b = case mode of {
     CppStdAnsi _ -> unlines [
         concat [ c, "* ", "cons", c, "(", bas, " x, ", c, "* xs) {" ]
         , "    xs->insert(xs->begin(), x);"
@@ -368,7 +371,8 @@ prConsC mode c b = case mode of {
       }
     inner = map toLower c ++ "_"
     -- if list element is primitive type, not to use smart-ptr for argument type
-    isNotBaseClass = not $ elem bas [baseClass | (baseClass,_) <- basetypes]
+    -- OK
+    isNotBaseClass = not $ elem bas primitives
 
 
 --The constructor assigns the parameters to the corresponding instance variables.
