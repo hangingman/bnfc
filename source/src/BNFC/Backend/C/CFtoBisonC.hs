@@ -485,12 +485,18 @@ rulesForBison :: RecordPositions -> ParserMode -> CF -> SymMap -> Rules
 rulesForBison rp mode cf env = map mkOne (ruleGroups cf) ++ posRules
   where
   mkOne (cat,rules) = constructRule rp mode cf env rules cat
+  scope = nsScope (parserPackage mode)
   posRules :: Rules
   posRules
-    | CppParser inPackage _ _ <- mode = for (positionCats cf) $ \ n -> (TokenCat n,
+    | CppParser inPackage _ Ansi <- mode = for (positionCats cf) $ \ n -> (TokenCat n,
       [( Map.findWithDefault n (Tokentype n) env
        , addResult mode cf (TokenCat n) $ concat
-         [ "$$ = new ", nsScope inPackage, n, "($1, @$.first_line);" ]
+         [ "$$ = new ", scope, n, "($1, @$.first_line);" ]
+       )])
+    | CppParser inPackage _ BeyondAnsi <- mode = for (positionCats cf) $ \ n -> (TokenCat n,
+      [( Map.findWithDefault n (Tokentype n) env
+       , addResult mode cf (TokenCat n) $ concat
+         [ "$$ = std::make_shared<", scope, n, ">($1, @$.begin.line);" ]
        )])
     | otherwise = []
 

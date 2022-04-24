@@ -129,6 +129,7 @@ prelude stringLiterals mode = unlines $ concat
     , if (beyondAnsi mode) then
         unlines
         [
+          -- note: bison bridge not supported for the C++ scanner.
           "%option nodefault noyywrap c++"
         ]
       else
