@@ -260,7 +260,6 @@ prList mode primitives (c, b) = case mode of {
     childClassVarName = "list" ++ map toLower childClass ++ "_"
     bas = applyWhen b (++ "*") $ drop 4 c {- drop "List" -}
     -- if list element is primitive type, not to use smart-ptr for argument type
-    -- OK
     isNotBaseClass = not $ elem childClass primitives
 
 
@@ -281,12 +280,16 @@ mkCFile mode inPackage cabs cf = unlines $ [
   nsEnd inPackage
   ]
   where
-  nil  t = (,dummyType) $ concat [ "new List", identType t, "()" ]
-  cons t = (,dummyType) $ concat [ "consList", identType t ]
-  primitives = [c | (c,_) <- basetypes] ++ tokentypes cabs
-  hExt = case mode of
-    CppStdAnsi _ -> ".h";
-    CppStdBeyondAnsi _ -> ".hh";
+    primitives = [c | (c,_) <- basetypes] ++ tokentypes cabs
+    nil  t = case mode of
+      CppStdAnsi _ -> (,dummyType) $ concat [ "new List", identType t, "()" ]
+      CppStdBeyondAnsi _ -> (,dummyType) $ wrapMakeShared ("List" ++ identType t) ++ "()"
+    cons t = case mode of
+      CppStdAnsi _ -> (,dummyType) $ concat [ "consList", identType t ]
+      CppStdBeyondAnsi _ -> (,dummyType) $ concat [ "consList", identType t ]
+    hExt = case mode of
+      CppStdAnsi _ -> ".h"
+      CppStdBeyondAnsi _ -> ".hh"
 
 
 prConC :: CppStdMode -> String -> CAbsRule -> String
@@ -352,11 +355,22 @@ prConsC mode primitives c b = case mode of {
         , "}"
         ];
     CppStdBeyondAnsi _ -> unlines [
-        concat [ "void ", c, "::cons(", wrapSharedPtrIf isNotBaseClass bas, " x) {" ]
+        -- Append a element into list tail (In C ++ term, "push_back")
+        concat [ "void ", c, "::cons(", consArg, " x) {" ]
         , if isNotBaseClass then
             "    " ++inner++ ".push_back(x);"
           else
             "    " ++inner++ ".push_back(std::make_unique<" ++bas++ ">(x));"
+        , "}"
+        , ""
+        -- Insert a element into list head (In C ++ term, "push_front" / in lisp term ? "cons")
+        -- This implementation is required in definedRules
+        , concat [wrapSharedPtr c, " cons", c, "(", consArg, " x, ", wrapSharedPtr c, " xs) {"]
+        , if isNotBaseClass then
+            "    xs->" ++inner++ ".push_front(x);"
+          else
+            "    xs->" ++inner++ ".push_front(std::make_unique<" ++bas++ ">(x));"
+        , "    return xs;"
         , "}"
         , ""
         , "void" +++ c ++ "::reverse() {"
@@ -371,8 +385,8 @@ prConsC mode primitives c b = case mode of {
       }
     inner = map toLower c ++ "_"
     -- if list element is primitive type, not to use smart-ptr for argument type
-    -- OK
     isNotBaseClass = not $ elem bas primitives
+    consArg = wrapSharedPtrIf isNotBaseClass bas
 
 
 --The constructor assigns the parameters to the corresponding instance variables.
