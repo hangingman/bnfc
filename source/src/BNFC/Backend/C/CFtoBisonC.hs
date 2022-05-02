@@ -120,7 +120,7 @@ cf2Bison rp mode cf env = unlines
          unlines [
         "void " ++nsScope parserNs++camelCaseName++ "Parser::error(const " ++nsScope parserNs++camelCaseName++ "Parser::location_type& l, const std::string& m)"
         , "{"
-        , "    driver.error(l, m);"
+        , "    driver.error(*scanner.loc, m);"
         , "}"]
       else
         entryCode mode cf -- entryCode for beyondAndi is in Driver

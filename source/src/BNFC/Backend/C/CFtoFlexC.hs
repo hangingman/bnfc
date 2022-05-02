@@ -181,7 +181,18 @@ prelude stringLiterals mode = unlines $ concat
     -- https://stackoverflow.com/a/22125500/425756
   , if beyondAnsi mode then
       [ "/* update location on matching */"
-      , "#define YY_USER_ACTION loc->step(); loc->columns(yyleng);"
+      , "#define YY_USER_ACTION \\"
+      , "loc->begin.line   = loc->end.line; \\"
+      , "loc->begin.column = loc->end.column; \\"
+      , "for(int i = 0; yytext[i] != '\\0'; i++) { \\"
+      , "    if(yytext[i] == '\\n') { \\"
+      , "        loc->end.line++; \\"
+      , "        loc->end.column = 0; \\"
+      , "    } \\"
+      , "    else { \\"
+      , "        loc->end.column++; \\"
+      , "    } \\"
+      , "}"
       , "%}"
       ]
     else
